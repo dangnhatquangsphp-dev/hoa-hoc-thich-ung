@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Đánh Giá & Luyện Tập Thích Ứng Hóa Học</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- KaTeX hiển thị công thức Hóa học -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 p-6">
+    <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-md border border-slate-200">
+        <h1 class="text-2xl font-bold text-center text-blue-700 mb-2">HỆ THỐNG ĐÁNH GIÁ & RÈN LUYỆN NĂNG LỰC HÓA HỌC</h1>
+        <p class="text-center text-slate-500 mb-6 text-sm" id="mode-title">Bài đánh giá đầu vào</p>
+        
+        <!-- Nhập thông tin học sinh -->
+        <div id="student-info" class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100 flex gap-4">
+            <input type="text" id="student_name" placeholder="Họ và tên học sinh" class="flex-1 p-2 border rounded border-slate-300">
+            <input type="text" id="student_code" placeholder="Mã học sinh (vd: HS01)" class="w-48 p-2 border rounded border-slate-300">
+            <button id="btn-start" onclick="startInitialTest()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded transition">Bắt đầu</button>
+        </div>
+
+        <div id="loading-text" class="hidden text-center py-6 text-blue-600 font-semibold">
+            Đang xử lý dữ liệu...
+        </div>
+
+        <!-- Khu vực làm bài -->
+        <div id="quiz-container" class="space-y-6 hidden">
+            <div id="questions-list" class="space-y-6"></div>
+            <button id="btn-submit" onclick="submitQuiz()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow transition">Nộp Bài Đánh Giá</button>
+        </div>
+
+        <!-- Khu vực kết quả & Hướng dẫn thích ứng -->
+        <div id="result-box" class="hidden mt-8 p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+            <h2 class="text-xl font-bold text-slate-800">Kết Quả Đánh Giá Năng Lực</h2>
+            <p id="score-text" class="text-lg font-medium text-slate-700"></p>
+            <p id="sync-status" class="text-xs text-slate-400 italic">Đang đồng bộ dữ liệu vào Google Sheet...</p>
+            <div id="skills-feedback" class="space-y-3"></div>
+            
+            <div id="remediation-action" class="pt-4 border-t border-slate-200 hidden">
+                <button onclick="startRemediationTest()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg shadow transition">
+                    👉 Bắt đầu luyện tập các kỹ năng còn thiếu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://fquizalynoibtuibyoxn.supabase.co/rest/v1";
+        const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdWl6YWx5bm9pYnR1aWJ5b3huIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkzNzUyMywiZXhwIjoyMTA4NTEzNTIzfQ.MhhxAnxr3ujueLGUH7QFpWPP0N2au8edOw3k2O2XgJE";
+        
+        // Link Google Sheet Web App của bạn
+        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbymUf3Dltkm6S_hwlx7gCwrUAKZH0_IwWqwwcFleDQHcbB0d-0pN4GK-NY4XNxJyDF7dg/exec";
+
+        const headers = {
+            "apikey": API_KEY,
+            "Authorization": `Bearer ${API_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        };
+
+        let currentQuestions = [];
+        let missingSkills = [];
+        let currentStudentCode = "";
+        let currentStudentName = "";
+
+        function triggerKaTeX() {
+            setTimeout(() => {
+                if (window.renderMathInElement) {
+                    renderMathInElement(document.body, {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: false},
+                            {left: '$', right: '$', display: false}
+                        ]
+                    });
+                }
+            }, 100);
+        }
+
+        async function startInitialTest() {
+            currentStudentName = document.getElementById("student_name").value.trim();
+            currentStudentCode = document.getElementById("student_code").value.trim();
+
+            if (!currentStudentName || !currentStudentCode) {
+                alert("Vui lòng điền đủ Họ tên và Mã học sinh!");
+                return;
+            }
+
+            document.getElementById("btn-start").disabled = true;
+            document.getElementById("loading-text").classList.remove("hidden");
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/questions?select=*`, { headers });
+                currentQuestions = await res.json();
+
+                renderQuestions(currentQuestions);
+
+                document.getElementById("student-info").classList.add("hidden");
+                document.getElementById("loading-text").classList.add("hidden");
+                document.getElementById("quiz-container").classList.remove("hidden");
+            } catch (err) {
+                alert("Lỗi tải bài kiểm tra: " + err.message);
+                document.getElementById("btn-start").disabled = false;
+                document.getElementById("loading-text").classList.add("hidden");
+            }
+        }
+
+        function renderQuestions(list) {
+            const container = document.getElementById("questions-list");
+            container.innerHTML = "";
+
+            list.forEach((q, idx) => {
+                const card = document.createElement("div");
+                card.className = "p-5 border border-slate-200 rounded-lg bg-white shadow-sm";
+                card.innerHTML = `
+                    <p class="font-semibold text-base mb-3 text-slate-900">Câu ${idx + 1}: ${q.content}</p>
+                    <div class="space-y-2">
+                        ${['A', 'B', 'C', 'D'].map(opt => `
+                            <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-100 cursor-pointer border border-transparent hover:border-slate-200">
+                                <input type="radio" name="q_${q.id}" value="${opt}" class="w-4 h-4 text-blue-600">
+                                <span><strong>${opt}.</strong> ${q['option_' + opt.toLowerCase()]}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            triggerKaTeX();
+        }
+
+        async function submitQuiz() {
+            let correctCount = 0;
+            missingSkills = [];
+            const feedbackList = [];
+
+            currentQuestions.forEach(q => {
+                const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                if (selected && selected.value === q.correct_option) {
+                    correctCount++;
+                } else {
+                    if (!missingSkills.includes(q.skill_code)) {
+                        missingSkills.push(q.skill_code);
+                    }
+                    feedbackList.push({
+                        skill: q.skill_code,
+                        explanation: q.explanation
+                    });
+                }
+            });
+
+            document.getElementById("quiz-container").classList.add("hidden");
+            const resultBox = document.getElementById("result-box");
+            resultBox.classList.remove("hidden");
+
+            const isPassed = missingSkills.length === 0;
+            const scoreFormatted = `${correctCount}/${currentQuestions.length}`;
+            const statusFormatted = isPassed ? "Đạt chuẩn" : "Chưa đạt (Cần luyện thêm)";
+
+            document.getElementById("score-text").innerHTML = `Kết quả: Đạt <strong>${scoreFormatted}</strong> câu đúng.`;
+
+            const feedbackDiv = document.getElementById("skills-feedback");
+            feedbackDiv.innerHTML = "";
+
+            const actionBox = document.getElementById("remediation-action");
+
+            if (!isPassed) {
+                let html = `
+                    <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-900">
+                        <p class="font-bold mb-2">Chẩn đoán các kỹ năng chưa đạt chuẩn:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-sm">
+                            ${feedbackList.map(item => `<li><strong>[${item.skill}]:</strong> ${item.explanation}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                feedbackDiv.innerHTML = html;
+                actionBox.classList.remove("hidden");
+            } else {
+                feedbackDiv.innerHTML = `
+                    <div class="p-4 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-lg font-bold">
+                        🎉 Chúc mừng! Bạn đã thành thạo tất cả các kỹ năng được yêu cầu. Đạt chuẩn bài kiểm tra!
+                    </div>
+                `;
+                actionBox.classList.add("hidden");
+            }
+
+            triggerKaTeX();
+
+            // Tự động đẩy kết quả ngầm sang Google Sheet
+            syncToGoogleSheet(currentStudentCode, currentStudentName, scoreFormatted, missingSkills.join(", "), statusFormatted);
+        }
+
+        async function syncToGoogleSheet(code, name, score, weak, status) {
+            const syncEl = document.getElementById("sync-status");
+            try {
+                // Sử dụng mode: 'no-cors' để đẩy dữ liệu ổn định không bị chặn bởi CORS
+                await fetch(GOOGLE_SHEET_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        student_code: code,
+                        student_name: name,
+                        score: score,
+                        weak_skills: weak || "Không có (Đạt chuẩn)",
+                        status: status
+                    })
+                });
+                syncEl.innerText = "✓ Đã tự động cập nhật kết quả vào Google Sheet của giáo viên.";
+                syncEl.className = "text-xs text-emerald-600 font-medium";
+            } catch (e) {
+                syncEl.innerText = "Chưa thể đồng bộ sang Sheet: " + e.message;
+                syncEl.className = "text-xs text-amber-600";
+            }
+        }
+
+        async function startRemediationTest() {
+            document.getElementById("result-box").classList.add("hidden");
+            document.getElementById("loading-text").classList.remove("hidden");
+            document.getElementById("mode-title").innerText = "Chế độ: Luyện tập khắc phục lỗ hổng kiến thức";
+
+            try {
+                const skillFilter = `in.(${missingSkills.join(',')})`;
+                const res = await fetch(`${SUPABASE_URL}/questions?skill_code=${skillFilter}&select=*`, { headers });
+                currentQuestions = await res.json();
+
+                renderQuestions(currentQuestions);
+
+                document.getElementById("loading-text").classList.add("hidden");
+                document.getElementById("quiz-container").classList.remove("hidden");
+            } catch (err) {
+                alert("Lỗi tải bài luyện tập thích ứng: " + err.message);
+                document.getElementById("loading-text").classList.add("hidden");
+            }
+        }
+    </script>
+</body>
+</html>
