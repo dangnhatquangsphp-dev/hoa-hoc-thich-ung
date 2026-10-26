@@ -17,7 +17,7 @@
     
     <header class="border-b pb-4 mb-6 text-center">
       <h1 class="text-2xl md:text-3xl font-extrabold text-blue-700 tracking-tight">KIỂM TRA & ĐÁNH GIÁ THÍCH ỨNG</h1>
-      <p class="text-sm text-gray-500 mt-1">Hệ thống chẩn đoán năng lực và phân hóa học tập tự động</p>
+      <p class="text-sm text-gray-500 mt-1">Đề thi tự động xáo trộn câu hỏi và phương án theo từng lượt làm</p>
     </header>
 
     <!-- Màn hình 1: Nhập thông tin học sinh -->
@@ -89,6 +89,16 @@
     let studentInfo = { name: "", code: "" };
     let missingSkills = [];
 
+    // Thuật toán Fisher-Yates xáo trộn mảng ngẫu nhiên
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
     async function fetchQuestions() {
       try {
         const res = await fetch(SUPABASE_URL, {
@@ -116,6 +126,49 @@
       }
     }
 
+    // Chuẩn bị đề thi ngẫu nhiên: Xáo trộn câu hỏi và xáo trộn các phương án
+    function prepareExamQuestions(rawQuestions) {
+      // 1. Xáo trộn thứ tự các câu hỏi
+      const shuffledQuestions = shuffleArray(rawQuestions);
+
+      // 2. Xáo trộn các phương án A, B, C, D của từng câu
+      return shuffledQuestions.map(q => {
+        const originalOptions = [
+          { key: 'A', text: q.option_a },
+          { key: 'B', text: q.option_b },
+          { key: 'C', text: q.option_c },
+          { key: 'D', text: q.option_d }
+        ].filter(opt => opt.text !== null && opt.text !== undefined && opt.text !== "");
+
+        // Tìm nội dung đáp án đúng gốc
+        const correctText = q[`option_${q.correct_option.toLowerCase()}`];
+
+        // Xáo trộn ngẫu nhiên các phương án
+        const randomizedOptions = shuffleArray(originalOptions);
+
+        // Gán lại nhãn A, B, C, D mới sau khi đã xáo
+        const letters = ['A', 'B', 'C', 'D'];
+        let newCorrectOption = 'A';
+
+        const finalShuffledOptions = randomizedOptions.map((opt, idx) => {
+          const newLabel = letters[idx];
+          if (opt.text === correctText) {
+            newCorrectOption = newLabel;
+          }
+          return {
+            label: newLabel,
+            text: opt.text
+          };
+        });
+
+        return {
+          ...q,
+          shuffledOptions: finalShuffledOptions,
+          newCorrectOption: newCorrectOption
+        };
+      });
+    }
+
     function startExam() {
       const name = document.getElementById("student-name").value.trim();
       const code = document.getElementById("student-code").value.trim();
@@ -126,7 +179,8 @@
       studentInfo = { name, code };
       document.getElementById("display-student").innerText = `${name} (${code})`;
 
-      currentExamQuestions = [...allQuestions];
+      // Tạo đề mới xáo trộn hoàn toàn
+      currentExamQuestions = prepareExamQuestions(allQuestions);
       userAnswers = {};
 
       document.getElementById("login-screen").classList.add("hidden");
@@ -151,18 +205,14 @@
           `;
         }
 
-        const options = ['A', 'B', 'C', 'D'];
         let optionsHtml = "";
-        options.forEach(opt => {
-          const optKey = `option_${opt.toLowerCase()}`;
-          if (q[optKey]) {
-            optionsHtml += `
-              <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
-                <input type="radio" name="q_${index}" value="${opt}" onchange="selectAnswer(${index}, '${opt}')" class="mt-1 text-blue-600 focus:ring-blue-500">
-                <span class="text-sm md:text-base"><strong class="text-blue-700">${opt}.</strong> ${q[optKey]}</span>
-              </label>
-            `;
-          }
+        q.shuffledOptions.forEach(opt => {
+          optionsHtml += `
+            <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
+              <input type="radio" name="q_${index}" value="${opt.label}" onchange="selectAnswer(${index}, '${opt.label}')" class="mt-1 text-blue-600 focus:ring-blue-500">
+              <span class="text-sm md:text-base"><strong class="text-blue-700">${opt.label}.</strong> ${opt.text}</span>
+            </label>
+          `;
         });
 
         card.innerHTML = `
@@ -195,7 +245,7 @@
 
       currentExamQuestions.forEach((q, index) => {
         const selected = userAnswers[index];
-        const isCorrect = selected === q.correct_option;
+        const isCorrect = selected === q.newCorrectOption;
         if (isCorrect) {
           score++;
         } else {
@@ -216,7 +266,7 @@
             <span class="${isCorrect ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}">
               Lựa chọn của bạn: ${selected || "Chưa chọn"} ${isCorrect ? '✓' : '✗'}
             </span>
-            <span class="ml-4 text-blue-700 font-bold">Đáp án đúng: ${q.correct_option}</span>
+            <span class="ml-4 text-blue-700 font-bold">Đáp án đúng: ${q.newCorrectOption}</span>
           </div>
           <div class="mt-2 text-xs bg-white p-3 rounded border text-gray-700">
             <strong>Lời giải:</strong> ${q.explanation || "Không có lời giải chi tiết."}
@@ -272,7 +322,9 @@
         alert("Hiện chưa có câu hỏi bổ trợ mới cho các kỹ năng này!");
         return;
       }
-      currentExamQuestions = adaptiveQuestions;
+      
+      // Ở vòng bổ trợ cũng xáo trộn lại để học sinh tư duy lại
+      currentExamQuestions = prepareExamQuestions(adaptiveQuestions);
       userAnswers = {};
 
       document.getElementById("quiz-phase-badge").innerText = "VÒNG 2: BỔ TRỢ THÍCH ỨNG THEO LỖ HỔNG";
