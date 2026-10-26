@@ -70,6 +70,9 @@
           <button onclick="loadReport()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow transition">
             Xem Báo Cáo
           </button>
+          <button onclick="syncToGoogleSheet()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow transition flex items-center gap-2">
+          <span>📊</span> Xuất Google Sheet
+          </button>
         </div>
       </div>
 
@@ -204,6 +207,48 @@
           </td>
         </tr>
       `).join("");
+    }
+    // Dán URL Web App bạn đã tạo từ Google Apps Script vào đây
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgvs3oAIbxFfp4mVmH4DNW2q9ePGyuxcm42jSvuJNtpYsHOMy9gahMyNoSOfc2sxVK/exec";
+
+    async function syncToGoogleSheet() {
+      const className = document.getElementById("filter-class").value.trim();
+      let url = `${SUPABASE_BASE}/submissions?select=*&order=submitted_at.asc`;
+      if (className) url += `&class_name=eq.${encodeURIComponent(className)}`;
+
+      const btn = event.target.closest("button");
+      btn.innerText = "Đang đồng bộ...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(url, { headers });
+        const submissions = await res.json();
+
+        if (!submissions || submissions.length === 0) {
+          alert("Không có bài làm nào để xuất dữ liệu!");
+          btn.innerHTML = "<span>📊</span> Xuất Google Sheet";
+          btn.disabled = false;
+          return;
+        }
+
+        let lastUrl = "";
+        for (const sub of submissions) {
+          const resp = await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify(sub)
+          });
+          const json = await resp.json();
+          if (json.fileUrl) lastUrl = json.fileUrl;
+        }
+
+        alert("Đã xuất và đồng bộ thành công vào Google Drive!");
+        if (lastUrl) window.open(lastUrl, "_blank");
+      } catch (err) {
+        alert("Lỗi đồng bộ: " + err.message);
+      } finally {
+        btn.innerHTML = "<span>📊</span> Xuất Google Sheet";
+        btn.disabled = false;
+      }
     }
   </script>
 </body>
