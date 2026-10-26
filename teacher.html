@@ -47,7 +47,7 @@
           <span id="topic-count-badge" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Đang tải...</span>
         </div>
         <div id="topics-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-3 border rounded-lg bg-slate-50 text-sm">
-          <!-- Danh sách chủ đề -->
+          <!-- Danh sách chủ đề tải từ database -->
         </div>
       </div>
 
@@ -115,7 +115,7 @@
       return skill.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     }
 
-    // 1. Tải toàn bộ chủ đề có trong ngân hàng
+    // 1. Tải danh sách chủ đề từ Supabase
     async function loadTopics() {
       try {
         const res = await fetch(`${SUPABASE_BASE}/questions?select=skill_code`, { headers });
@@ -175,9 +175,10 @@
       }
     }
 
-    // 3. Tải danh sách kết quả học sinh theo lớp (lọc mượt mà, không phân biệt hoa thường)
+    // 3. Tải danh sách kết quả học sinh theo lớp (lọc chuẩn xác)
     async function loadReport() {
-      const filterInput = document.getElementById("filter-class").value.trim().toLowerCase();
+      const rawInput = document.getElementById("filter-class").value.trim();
+      const cleanFilter = rawInput.replace(/[\s\-_]/g, '').toLowerCase();
       const url = `${SUPABASE_BASE}/submissions?select=*&order=submitted_at.desc`;
 
       const tbody = document.getElementById("report-body");
@@ -187,13 +188,17 @@
         const res = await fetch(url, { headers });
         const allData = await res.json();
 
-        // Lọc trực tiếp trên trình duyệt
-        const data = filterInput 
-          ? allData.filter(row => row.class_name && row.class_name.toString().trim().toLowerCase().includes(filterInput))
+        // Lọc loại bỏ khoảng trắng và không phân biệt chữ hoa/thường
+        const data = cleanFilter 
+          ? allData.filter(row => {
+              if (!row.class_name) return false;
+              const cleanClass = row.class_name.toString().replace(/[\s\-_]/g, '').toLowerCase();
+              return cleanClass === cleanFilter || cleanClass.includes(cleanFilter);
+            })
           : allData;
 
         if (!data || data.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có dữ liệu làm bài nào${filterInput ? ' cho lớp ' + filterInput.toUpperCase() : ''}.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có dữ liệu làm bài nào${rawInput ? ' cho lớp ' + rawInput.toUpperCase() : ''}.</td></tr>`;
           return;
         }
 
@@ -221,7 +226,8 @@
 
     // 4. Đồng bộ về Google Sheet theo lớp
     async function syncToGoogleSheet() {
-      const filterClass = document.getElementById("filter-class").value.trim().toLowerCase();
+      const rawInput = document.getElementById("filter-class").value.trim();
+      const cleanFilter = rawInput.replace(/[\s\-_]/g, '').toLowerCase();
       const url = `${SUPABASE_BASE}/submissions?select=*&order=submitted_at.asc`;
 
       const btn = event.target.closest("button");
@@ -232,13 +238,17 @@
         const res = await fetch(url, { headers });
         const submissions = await res.json();
 
-        // Lọc theo lớp trước khi đẩy sang Google Sheet
-        const filteredSubmissions = filterClass
-          ? submissions.filter(s => s.class_name && s.class_name.toString().trim().toLowerCase().includes(filterClass))
+        // Lọc trước khi đẩy sang Google Sheet
+        const filteredSubmissions = cleanFilter
+          ? submissions.filter(s => {
+              if (!s.class_name) return false;
+              const cleanClass = s.class_name.toString().replace(/[\s\-_]/g, '').toLowerCase();
+              return cleanClass === cleanFilter || cleanClass.includes(cleanFilter);
+            })
           : submissions;
 
         if (!filteredSubmissions || filteredSubmissions.length === 0) {
-          alert("Không có bài làm nào " + (filterClass ? "của lớp " + filterClass.toUpperCase() + " " : "") + "để xuất dữ liệu!");
+          alert("Không có bài làm nào " + (rawInput ? "của lớp " + rawInput.toUpperCase() + " " : "") + "để xuất dữ liệu!");
           btn.innerHTML = "<span>📊</span> Xuất Google Sheet";
           btn.disabled = false;
           return;
