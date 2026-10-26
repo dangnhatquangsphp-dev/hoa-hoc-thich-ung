@@ -285,18 +285,34 @@
       const weaknessList = document.getElementById("weakness-list");
       weaknessList.innerHTML = "";
 
-      if (missingSkills.length > 0) {
-        weaknessBox.classList.remove("hidden");
-        missingSkills.forEach(s => {
-          const li = document.createElement("li");
-          li.innerText = s;
-          weaknessList.appendChild(li);
-        });
-        document.getElementById("feedback-text").innerText = "Bạn có một số kiến thức cần củng cố để đạt chuẩn đầu ra.";
-      } else {
-        weaknessBox.classList.add("hidden");
-        document.getElementById("feedback-text").innerText = "Xuất sắc! Bạn đã đạt chuẩn toàn bộ các kỹ năng trong bài kiểm tra.";
-      }
+	// Hàm làm sạch và chuyển mã kỹ năng thành tên hiển thị rõ ràng
+	function formatSkillName(skill) {
+	  if (!skill) return "";
+	  // Bỏ dấu gạch dưới và viết hoa chữ cái đầu
+	  return skill
+		.toLowerCase()
+		.replace(/_/g, " ")
+		.replace(/\b\w/g, c => c.toUpperCase());
+	}
+
+	// Lọc bỏ các giá trị số hoặc ký tự vô nghĩa (như 1, 2, 5, 9...)
+	const validSkills = missingSkills.filter(s => {
+	  const str = String(s).trim();
+	  return str.length > 2 && isNaN(str);
+	});
+
+	if (validSkills.length > 0) {
+	  weaknessBox.classList.remove("hidden");
+	  validSkills.forEach(s => {
+		const li = document.createElement("li");
+		li.innerText = formatSkillName(s);
+		weaknessList.appendChild(li);
+	  });
+	  document.getElementById("feedback-text").innerText = "Bạn có một số kiến thức cần củng cố để đạt chuẩn đầu ra.";
+	} else {
+	  weaknessBox.classList.add("hidden");
+	  document.getElementById("feedback-text").innerText = "Xuất sắc! Bạn đã đạt chuẩn toàn bộ các kỹ năng trong bài kiểm tra.";
+	}
 
       try {
         fetch(GOOGLE_SHEET_WEBHOOK, {
