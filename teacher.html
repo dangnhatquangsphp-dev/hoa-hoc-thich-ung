@@ -66,12 +66,12 @@
           <span>📊</span> 2. Báo Cáo Năng Lực Học Sinh Theo Lớp
         </h2>
         <div class="flex gap-2 w-full md:w-auto">
-          <input id="filter-class" type="text" placeholder="Lọc theo Lớp (VD: 9A1)" class="border px-3 py-2 rounded-lg text-sm w-full md:w-48 outline-none">
+          <input id="filter-class" type="text" placeholder="Lọc theo Lớp (VD: 9D4)" class="border px-3 py-2 rounded-lg text-sm w-full md:w-48 outline-none focus:ring-2 focus:ring-emerald-500">
           <button onclick="loadReport()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow transition">
             Xem Báo Cáo
           </button>
           <button onclick="syncToGoogleSheet()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow transition flex items-center gap-2">
-          <span>📊</span> Xuất Google Sheet
+            <span>📊</span> Xuất Google Sheet
           </button>
         </div>
       </div>
@@ -101,6 +101,7 @@
   <script>
     const SUPABASE_BASE = "https://fquizalynoibtuibyoxn.supabase.co/rest/v1";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdWl6YWx5bm9pYnR1aWJ5b3huIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkzNzUyMywiZXhwIjoyMTA4NTEzNTIzfQ.MhhxAnxr3ujueLGUH7QFpWPP0N2au8edOw3k2O2XgJE";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgvs3oAIbxFfp4mVmH4DNW2q9ePGyuxcm42jSvuJNtpYsHOMy9gahMyNoSOfc2sxVK/exec";
 
     const headers = {
       "apikey": SUPABASE_KEY,
@@ -110,6 +111,7 @@
     };
 
     function formatSkill(skill) {
+      if (!skill) return "";
       return skill.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     }
 
@@ -173,76 +175,51 @@
       }
     }
 
-    // 3. Tải danh sách kết quả học sinh theo lớp
-// 3. Tải danh sách kết quả học sinh theo lớp (lọc linh hoạt, không phân biệt hoa thường)
-  async function loadReport() {
-    const filterInput = document.getElementById("filter-class").value.trim().toLowerCase();
-    const url = `${SUPABASE_BASE}/submissions?select=*&order=submitted_at.desc`;
-  
-    const tbody = document.getElementById("report-body");
-    tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Đang tải dữ liệu...</td></tr>`;
-  
-    try {
-      const res = await fetch(url, { headers });
-      const allData = await res.json();
-  
-      // Lọc theo lớp trực tiếp trên trình duyệt
-      const data = filterInput 
-        ? allData.filter(row => row.class_name && row.class_name.toString().trim().toLowerCase().includes(filterInput))
-        : allData;
-  
-      if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có dữ liệu làm bài nào${filterInput ? ' cho lớp ' + filterInput.toUpperCase() : ''}.</td></tr>`;
-        return;
-      }
-  
-      tbody.innerHTML = data.map(row => `
-        <tr class="hover:bg-slate-50 transition">
-          <td class="p-3 font-semibold">${row.student_name}</td>
-          <td class="p-3 font-mono text-slate-500">${row.student_code}</td>
-          <td class="p-3"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-bold">${row.class_name}</span></td>
-          <td class="p-3 font-mono font-bold text-slate-700">${row.exam_code || "-"}</td>
-          <td class="p-3 font-bold ${row.score >= (row.total_questions / 2) ? 'text-emerald-600' : 'text-red-600'}">
-            ${row.score} / ${row.total_questions}
-          </td>
-          <td class="p-3 text-xs text-amber-800 font-medium max-w-xs">
-            ${row.weak_skills && row.weak_skills.length > 0 ? row.weak_skills.map(formatSkill).join(", ") : "<span class='text-emerald-600'>Đạt chuẩn</span>"}
-          </td>
-          <td class="p-3 text-xs text-slate-400 font-mono">
-            ${new Date(row.submitted_at).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })} - ${new Date(row.submitted_at).toLocaleDateString("vi-VN")}
-          </td>
-        </tr>
-      `).join("");
-    } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
-    }
-  }
-      if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có dữ liệu làm bài nào${className ? ' cho lớp ' + className : ''}.</td></tr>`;
-        return;
-      }
+    // 3. Tải danh sách kết quả học sinh theo lớp (lọc mượt mà, không phân biệt hoa thường)
+    async function loadReport() {
+      const filterInput = document.getElementById("filter-class").value.trim().toLowerCase();
+      const url = `${SUPABASE_BASE}/submissions?select=*&order=submitted_at.desc`;
 
-      tbody.innerHTML = data.map(row => `
-        <tr class="hover:bg-slate-50 transition">
-          <td class="p-3 font-semibold">${row.student_name}</td>
-          <td class="p-3 font-mono text-slate-500">${row.student_code}</td>
-          <td class="p-3"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-bold">${row.class_name}</span></td>
-          <td class="p-3 font-mono font-bold text-slate-700">${row.exam_code || "-"}</td>
-          <td class="p-3 font-bold ${row.score >= (row.total_questions / 2) ? 'text-emerald-600' : 'text-red-600'}">
-            ${row.score} / ${row.total_questions}
-          </td>
-          <td class="p-3 text-xs text-amber-800 font-medium max-w-xs">
-            ${row.weak_skills && row.weak_skills.length > 0 ? row.weak_skills.map(formatSkill).join(", ") : "<span class='text-emerald-600'>Đạt chuẩn</span>"}
-          </td>
-          <td class="p-3 text-xs text-slate-400 font-mono">
-            ${new Date(row.submitted_at).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })} - ${new Date(row.submitted_at).toLocaleDateString("vi-VN")}
-          </td>
-        </tr>
-      `).join("");
-    }
-    // Dán URL Web App bạn đã tạo từ Google Apps Script vào đây
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgvs3oAIbxFfp4mVmH4DNW2q9ePGyuxcm42jSvuJNtpYsHOMy9gahMyNoSOfc2sxVK/exec";
+      const tbody = document.getElementById("report-body");
+      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Đang tải dữ liệu...</td></tr>`;
 
+      try {
+        const res = await fetch(url, { headers });
+        const allData = await res.json();
+
+        // Lọc trực tiếp trên trình duyệt
+        const data = filterInput 
+          ? allData.filter(row => row.class_name && row.class_name.toString().trim().toLowerCase().includes(filterInput))
+          : allData;
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có dữ liệu làm bài nào${filterInput ? ' cho lớp ' + filterInput.toUpperCase() : ''}.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.map(row => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-semibold">${row.student_name}</td>
+            <td class="p-3 font-mono text-slate-500">${row.student_code}</td>
+            <td class="p-3"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-bold">${row.class_name}</span></td>
+            <td class="p-3 font-mono font-bold text-slate-700">${row.exam_code || "-"}</td>
+            <td class="p-3 font-bold ${row.score >= (row.total_questions / 2) ? 'text-emerald-600' : 'text-red-600'}">
+              ${row.score} / ${row.total_questions}
+            </td>
+            <td class="p-3 text-xs text-amber-800 font-medium max-w-xs">
+              ${row.weak_skills && row.weak_skills.length > 0 ? row.weak_skills.map(formatSkill).join(", ") : "<span class='text-emerald-600'>Đạt chuẩn</span>"}
+            </td>
+            <td class="p-3 text-xs text-slate-400 font-mono">
+              ${new Date(row.submitted_at).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })} - ${new Date(row.submitted_at).toLocaleDateString("vi-VN")}
+            </td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
+      }
+    }
+
+    // 4. Đồng bộ về Google Sheet theo lớp
     async function syncToGoogleSheet() {
       const filterClass = document.getElementById("filter-class").value.trim().toLowerCase();
       const url = `${SUPABASE_BASE}/submissions?select=*&order=submitted_at.asc`;
@@ -254,12 +231,14 @@
       try {
         const res = await fetch(url, { headers });
         const submissions = await res.json();
+
+        // Lọc theo lớp trước khi đẩy sang Google Sheet
         const filteredSubmissions = filterClass
           ? submissions.filter(s => s.class_name && s.class_name.toString().trim().toLowerCase().includes(filterClass))
           : submissions;
 
-        if (!submissions || submissions.length === 0) {
-          alert("Không có bài làm nào để xuất dữ liệu!");
+        if (!filteredSubmissions || filteredSubmissions.length === 0) {
+          alert("Không có bài làm nào " + (filterClass ? "của lớp " + filterClass.toUpperCase() + " " : "") + "để xuất dữ liệu!");
           btn.innerHTML = "<span>📊</span> Xuất Google Sheet";
           btn.disabled = false;
           return;
