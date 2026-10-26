@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hệ Thống Đánh Giá & Học Tập Thích Ứng Hóa Học</title>
+  <title>Làm Bài Kiểm Tra Thích Ứng - KHTN</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- KaTeX CSS & JS -->
+  <!-- KaTeX -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
@@ -16,21 +16,31 @@
   <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden p-6 md:p-8">
     
     <header class="border-b pb-4 mb-6 text-center">
-      <h1 class="text-2xl md:text-3xl font-extrabold text-blue-700 tracking-tight">KIỂM TRA & ĐÁNH GIÁ THÍCH ỨNG</h1>
-      <p class="text-sm text-gray-500 mt-1">Đề thi tự động xáo trộn câu hỏi và phương án theo từng lượt làm</p>
+      <h1 class="text-2xl md:text-3xl font-extrabold text-blue-700 tracking-tight" id="header-title">BÀI KIỂM TRA THÍCH ỨNG KHTN</h1>
+      <p class="text-sm text-gray-500 mt-1" id="header-desc">Hệ thống phân hóa và chẩn đoán năng lực học tập tự động</p>
     </header>
 
     <!-- Màn hình 1: Nhập thông tin học sinh -->
     <div id="login-screen" class="space-y-4 max-w-md mx-auto">
       <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Mã bài kiểm tra</label>
+        <input type="text" id="exam-code-input" placeholder="VD: KHTN9-HK1 (hoặc để trống nếu làm toàn bộ)" class="w-full border rounded-lg px-3 py-2 uppercase font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+      <div>
         <label class="block text-sm font-semibold text-gray-700 mb-1">Họ và tên học sinh</label>
         <input type="text" id="student-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
       </div>
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1">Mã số học sinh / Lớp</label>
-        <input type="text" id="student-code" placeholder="Ví dụ: HS01 - Lớp 9A" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Mã học sinh</label>
+          <input type="text" id="student-code" placeholder="VD: HS01" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Lớp</label>
+          <input type="text" id="student-class" placeholder="VD: 9A1" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
       </div>
-      <button onclick="startExam()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition duration-200 shadow">
+      <button onclick="startExamSession()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition duration-200 shadow mt-2">
         Bắt đầu làm bài
       </button>
     </div>
@@ -79,17 +89,28 @@
   </div>
 
   <script>
-    const SUPABASE_URL = "https://fquizalynoibtuibyoxn.supabase.co/rest/v1/questions?select=*";
+    const SUPABASE_BASE = "https://fquizalynoibtuibyoxn.supabase.co/rest/v1";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdWl6YWx5bm9pYnR1aWJ5b3huIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkzNzUyMywiZXhwIjoyMTA4NTEzNTIzfQ.MhhxAnxr3ujueLGUH7QFpWPP0N2au8edOw3k2O2XgJE";
-    const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbz_9YFkI2n4o0sC9k4q-L7k8V2H9t3f0pQ_example/exec";
+
+    const headers = {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json"
+    };
 
     let allQuestions = [];
     let currentExamQuestions = [];
     let userAnswers = {};
-    let studentInfo = { name: "", code: "" };
+    let studentInfo = { name: "", code: "", className: "", examCode: "" };
     let missingSkills = [];
 
-    // Thuật toán Fisher-Yates xáo trộn mảng ngẫu nhiên
+    // Tự động điền mã đề nếu có tham số trên URL (?exam=XYZ)
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramExam = urlParams.get('exam');
+    if (paramExam) {
+      document.getElementById('exam-code-input').value = paramExam.toUpperCase();
+    }
+
     function shuffleArray(array) {
       const arr = [...array];
       for (let i = arr.length - 1; i > 0; i--) {
@@ -99,20 +120,10 @@
       return arr;
     }
 
-    async function fetchQuestions() {
-      try {
-        const res = await fetch(SUPABASE_URL, {
-          headers: {
-            "apikey": SUPABASE_KEY,
-            "Authorization": `Bearer ${SUPABASE_KEY}`
-          }
-        });
-        allQuestions = await res.json();
-      } catch (err) {
-        alert("Lỗi tải ngân hàng câu hỏi!");
-      }
+    function formatSkillName(skill) {
+      if (!skill) return "";
+      return skill.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     }
-    fetchQuestions();
 
     function renderKaTeXText(element) {
       if (window.renderMathInElement) {
@@ -126,13 +137,9 @@
       }
     }
 
-    // Chuẩn bị đề thi ngẫu nhiên: Xáo trộn câu hỏi và xáo trộn các phương án
     function prepareExamQuestions(rawQuestions) {
-      // 1. Xáo trộn thứ tự các câu hỏi
-      const shuffledQuestions = shuffleArray(rawQuestions);
-
-      // 2. Xáo trộn các phương án A, B, C, D của từng câu
-      return shuffledQuestions.map(q => {
+      const shuffled = shuffleArray(rawQuestions);
+      return shuffled.map(q => {
         const originalOptions = [
           { key: 'A', text: q.option_a },
           { key: 'B', text: q.option_b },
@@ -140,49 +147,71 @@
           { key: 'D', text: q.option_d }
         ].filter(opt => opt.text !== null && opt.text !== undefined && opt.text !== "");
 
-        // Tìm nội dung đáp án đúng gốc
-        const correctText = q[`option_${q.correct_option.toLowerCase()}`];
+        const correctKey = (q.correct_option || 'A').toLowerCase();
+        const correctText = q[`option_${correctKey}`];
 
-        // Xáo trộn ngẫu nhiên các phương án
-        const randomizedOptions = shuffleArray(originalOptions);
-
-        // Gán lại nhãn A, B, C, D mới sau khi đã xáo
+        const randomized = shuffleArray(originalOptions);
         const letters = ['A', 'B', 'C', 'D'];
-        let newCorrectOption = 'A';
+        let newCorrect = 'A';
 
-        const finalShuffledOptions = randomizedOptions.map((opt, idx) => {
-          const newLabel = letters[idx];
-          if (opt.text === correctText) {
-            newCorrectOption = newLabel;
-          }
-          return {
-            label: newLabel,
-            text: opt.text
-          };
+        const finalOptions = randomized.map((opt, idx) => {
+          const label = letters[idx];
+          if (opt.text === correctText) newCorrect = label;
+          return { label, text: opt.text };
         });
 
         return {
           ...q,
-          shuffledOptions: finalShuffledOptions,
-          newCorrectOption: newCorrectOption
+          shuffledOptions: finalOptions,
+          newCorrectOption: newCorrect
         };
       });
     }
 
-    function startExam() {
+    async function startExamSession() {
       const name = document.getElementById("student-name").value.trim();
       const code = document.getElementById("student-code").value.trim();
-      if (!name || !code) {
-        alert("Vui lòng điền đầy đủ Họ tên và Mã học sinh!");
+      const className = document.getElementById("student-class").value.trim();
+      const examCode = document.getElementById("exam-code-input").value.trim().toUpperCase();
+
+      if (!name || !code || !className) {
+        alert("Vui lòng điền Họ tên, Mã số học sinh và Lớp!");
         return;
       }
-      studentInfo = { name, code };
-      document.getElementById("display-student").innerText = `${name} (${code})`;
 
-      // Tạo đề mới xáo trộn hoàn toàn
-      currentExamQuestions = prepareExamQuestions(allQuestions);
+      studentInfo = { name, code, className, examCode };
+
+      // 1. Tải câu hỏi theo cấu hình mã đề của GV hoặc lấy mặc định
+      let questionPool = [];
+      if (examCode) {
+        try {
+          const examRes = await fetch(`${SUPABASE_BASE}/exams?exam_code=eq.${examCode}`, { headers });
+          const examData = await examRes.json();
+          if (examData.length > 0) {
+            const config = examData[0];
+            const topicsParam = config.selected_topics.map(t => `"${t}"`).join(",");
+            const qRes = await fetch(`${SUPABASE_BASE}/questions?skill_code=in.(${topicsParam})`, { headers });
+            const pool = await qRes.json();
+            questionPool = shuffleArray(pool).slice(0, config.question_count || 15);
+          } else {
+            alert(`Không tìm thấy mã đề "${examCode}". Hệ thống sẽ tải đề mặc định từ ngân hàng.`);
+            const qRes = await fetch(`${SUPABASE_BASE}/questions?select=*`, { headers });
+            questionPool = await qRes.json();
+          }
+        } catch (e) {
+          alert("Lỗi tải đề thi!");
+          return;
+        }
+      } else {
+        const qRes = await fetch(`${SUPABASE_BASE}/questions?select=*`, { headers });
+        questionPool = await qRes.json();
+      }
+
+      allQuestions = questionPool;
+      currentExamQuestions = prepareExamQuestions(questionPool);
       userAnswers = {};
 
+      document.getElementById("display-student").innerText = `${name} (${code} - ${className}) ${examCode ? ' | Mã đề: ' + examCode : ''}`;
       document.getElementById("login-screen").classList.add("hidden");
       document.getElementById("quiz-screen").classList.remove("hidden");
       renderQuiz();
@@ -227,15 +256,13 @@
       renderKaTeXText(container);
     }
 
-    function selectAnswer(qIndex, option) {
-      userAnswers[qIndex] = option;
+    function selectAnswer(index, option) {
+      userAnswers[index] = option;
     }
 
     async function submitExam() {
       if (Object.keys(userAnswers).length < currentExamQuestions.length) {
-        if (!confirm("Bạn chưa hoàn thành hết các câu hỏi. Bạn vẫn muốn nộp bài chứ?")) {
-          return;
-        }
+        if (!confirm("Bạn chưa hoàn thành hết các câu hỏi. Bạn vẫn muốn nộp bài chứ?")) return;
       }
 
       let score = 0;
@@ -281,66 +308,51 @@
       document.getElementById("result-screen").classList.remove("hidden");
       document.getElementById("score-display").innerText = `${score} / ${currentExamQuestions.length}`;
 
+      const validSkills = missingSkills.filter(s => String(s).trim().length > 2 && isNaN(String(s).trim()));
       const weaknessBox = document.getElementById("weakness-box");
       const weaknessList = document.getElementById("weakness-list");
       weaknessList.innerHTML = "";
 
-	// Hàm làm sạch và chuyển mã kỹ năng thành tên hiển thị rõ ràng
-	function formatSkillName(skill) {
-	  if (!skill) return "";
-	  // Bỏ dấu gạch dưới và viết hoa chữ cái đầu
-	  return skill
-		.toLowerCase()
-		.replace(/_/g, " ")
-		.replace(/\b\w/g, c => c.toUpperCase());
-	}
+      if (validSkills.length > 0) {
+        weaknessBox.classList.remove("hidden");
+        validSkills.forEach(s => {
+          const li = document.createElement("li");
+          li.innerText = formatSkillName(s);
+          weaknessList.appendChild(li);
+        });
+        document.getElementById("feedback-text").innerText = "Bạn có một số kiến thức cần củng cố để đạt chuẩn đầu ra.";
+      } else {
+        weaknessBox.classList.add("hidden");
+        document.getElementById("feedback-text").innerText = "Xuất sắc! Bạn đã đạt chuẩn toàn bộ các kỹ năng trong bài kiểm tra.";
+      }
 
-	// Lọc bỏ các giá trị số hoặc ký tự vô nghĩa (như 1, 2, 5, 9...)
-	const validSkills = missingSkills.filter(s => {
-	  const str = String(s).trim();
-	  return str.length > 2 && isNaN(str);
-	});
-
-	if (validSkills.length > 0) {
-	  weaknessBox.classList.remove("hidden");
-	  validSkills.forEach(s => {
-		const li = document.createElement("li");
-		li.innerText = formatSkillName(s);
-		weaknessList.appendChild(li);
-	  });
-	  document.getElementById("feedback-text").innerText = "Bạn có một số kiến thức cần củng cố để đạt chuẩn đầu ra.";
-	} else {
-	  weaknessBox.classList.add("hidden");
-	  document.getElementById("feedback-text").innerText = "Xuất sắc! Bạn đã đạt chuẩn toàn bộ các kỹ năng trong bài kiểm tra.";
-	}
-
+      // Lưu kết quả vào Supabase để bảng điều khiển của GV theo dõi
       try {
-        fetch(GOOGLE_SHEET_WEBHOOK, {
+        fetch(`${SUPABASE_BASE}/submissions`, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
+            exam_code: studentInfo.examCode || null,
             student_name: studentInfo.name,
             student_code: studentInfo.code,
+            class_name: studentInfo.className,
             score: score,
-            total: currentExamQuestions.length,
-            missing_skills: missingSkills.length > 0 ? missingSkills.join(", ") : "Không có (Đạt chuẩn)"
+            total_questions: currentExamQuestions.length,
+            weak_skills: validSkills
           })
         });
       } catch (e) {
-        console.log("Sheet update silent fail");
+        console.log("Supabase save silent fail");
       }
     }
 
     function startAdaptiveRemediation() {
-      const adaptiveQuestions = allQuestions.filter(q => missingSkills.includes(q.skill_code));
-      if (adaptiveQuestions.length === 0) {
-        alert("Hiện chưa có câu hỏi bổ trợ mới cho các kỹ năng này!");
+      const adaptive = allQuestions.filter(q => missingSkills.includes(q.skill_code));
+      if (adaptive.length === 0) {
+        alert("Hiện chưa có thêm câu hỏi bổ trợ cho các kỹ năng này!");
         return;
       }
-      
-      // Ở vòng bổ trợ cũng xáo trộn lại để học sinh tư duy lại
-      currentExamQuestions = prepareExamQuestions(adaptiveQuestions);
+      currentExamQuestions = prepareExamQuestions(adaptive);
       userAnswers = {};
 
       document.getElementById("quiz-phase-badge").innerText = "VÒNG 2: BỔ TRỢ THÍCH ỨNG THEO LỖ HỔNG";
