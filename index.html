@@ -1,243 +1,288 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Đánh Giá & Luyện Tập Thích Ứng Hóa Học</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- KaTeX hiển thị công thức Hóa học -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Đánh Giá & Học Tập Thích Ứng Hóa Học</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- KaTeX CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 p-6">
-    <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-md border border-slate-200">
-        <h1 class="text-2xl font-bold text-center text-blue-700 mb-2">HỆ THỐNG ĐÁNH GIÁ & RÈN LUYỆN NĂNG LỰC HÓA HỌC</h1>
-        <p class="text-center text-slate-500 mb-6 text-sm" id="mode-title">Bài đánh giá đầu vào</p>
-        
-        <!-- Nhập thông tin học sinh -->
-        <div id="student-info" class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100 flex gap-4">
-            <input type="text" id="student_name" placeholder="Họ và tên học sinh" class="flex-1 p-2 border rounded border-slate-300">
-            <input type="text" id="student_code" placeholder="Mã học sinh (vd: HS01)" class="w-48 p-2 border rounded border-slate-300">
-            <button id="btn-start" onclick="startInitialTest()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded transition">Bắt đầu</button>
-        </div>
+<body class="bg-gray-50 min-h-screen py-8 px-4 font-sans text-gray-800">
 
-        <div id="loading-text" class="hidden text-center py-6 text-blue-600 font-semibold">
-            Đang xử lý dữ liệu...
-        </div>
+  <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden p-6 md:p-8">
+    
+    <header class="border-b pb-4 mb-6 text-center">
+      <h1 class="text-2xl md:text-3xl font-extrabold text-blue-700 tracking-tight">KIỂM TRA & ĐÁNH GIÁ THÍCH ỨNG</h1>
+      <p class="text-sm text-gray-500 mt-1">Hệ thống chẩn đoán năng lực và phân hóa học tập tự động</p>
+    </header>
 
-        <!-- Khu vực làm bài -->
-        <div id="quiz-container" class="space-y-6 hidden">
-            <div id="questions-list" class="space-y-6"></div>
-            <button id="btn-submit" onclick="submitQuiz()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow transition">Nộp Bài Đánh Giá</button>
-        </div>
-
-        <!-- Khu vực kết quả & Hướng dẫn thích ứng -->
-        <div id="result-box" class="hidden mt-8 p-6 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
-            <h2 class="text-xl font-bold text-slate-800">Kết Quả Đánh Giá Năng Lực</h2>
-            <p id="score-text" class="text-lg font-medium text-slate-700"></p>
-            <p id="sync-status" class="text-xs text-slate-400 italic">Đang đồng bộ dữ liệu vào Google Sheet...</p>
-            <div id="skills-feedback" class="space-y-3"></div>
-            
-            <div id="remediation-action" class="pt-4 border-t border-slate-200 hidden">
-                <button onclick="startRemediationTest()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg shadow transition">
-                    👉 Bắt đầu luyện tập các kỹ năng còn thiếu
-                </button>
-            </div>
-        </div>
+    <!-- Màn hình 1: Nhập thông tin học sinh -->
+    <div id="login-screen" class="space-y-4 max-w-md mx-auto">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Họ và tên học sinh</label>
+        <input type="text" id="student-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Mã số học sinh / Lớp</label>
+        <input type="text" id="student-code" placeholder="Ví dụ: HS01 - Lớp 9A" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+      <button onclick="startExam()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition duration-200 shadow">
+        Bắt đầu làm bài
+      </button>
     </div>
 
-    <script>
-        const SUPABASE_URL = "https://fquizalynoibtuibyoxn.supabase.co/rest/v1";
-        const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdWl6YWx5bm9pYnR1aWJ5b3huIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkzNzUyMywiZXhwIjoyMTA4NTEzNTIzfQ.MhhxAnxr3ujueLGUH7QFpWPP0N2au8edOw3k2O2XgJE";
+    <!-- Màn hình 2: Khu vực làm bài -->
+    <div id="quiz-screen" class="hidden">
+      <div class="flex justify-between items-center mb-6 bg-blue-50 p-3 rounded-lg border border-blue-100">
+        <span id="display-student" class="font-semibold text-blue-900"></span>
+        <span id="quiz-phase-badge" class="bg-blue-200 text-blue-800 text-xs px-2.5 py-1 rounded-full font-bold">VÒNG ĐÁNH GIÁ ĐẦU VÀO</span>
+      </div>
+
+      <div id="questions-container" class="space-y-8"></div>
+
+      <div class="mt-8 pt-4 border-t">
+        <button onclick="submitExam()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow text-lg">
+          Nộp bài kiểm tra
+        </button>
+      </div>
+    </div>
+
+    <!-- Màn hình 3: Kết quả và Đề xuất Thích ứng -->
+    <div id="result-screen" class="hidden space-y-6">
+      <div class="bg-gray-50 border rounded-xl p-6 text-center">
+        <h2 class="text-xl font-bold text-gray-800 mb-2">KẾT QUẢ ĐÁNH GIÁ NĂNG LỰC</h2>
+        <div id="score-display" class="text-4xl font-extrabold text-blue-600 my-2">0/0</div>
+        <p id="feedback-text" class="text-gray-600 mt-2 text-sm md:text-base"></p>
+      </div>
+
+      <div id="weakness-box" class="hidden border border-amber-200 bg-amber-50 rounded-xl p-5">
+        <h3 class="font-bold text-amber-900 flex items-center gap-2">
+          <span>⚠️</span> Các kỹ năng cần củng cố ngay:
+        </h3>
+        <ul id="weakness-list" class="list-disc list-inside mt-2 text-sm text-amber-800 space-y-1"></ul>
         
-        // Link Google Sheet Web App của bạn
-        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbymUf3Dltkm6S_hwlx7gCwrUAKZH0_IwWqwwcFleDQHcbB0d-0pN4GK-NY4XNxJyDF7dg/exec";
+        <button onclick="startAdaptiveRemediation()" class="mt-4 w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-lg transition shadow">
+          Bắt đầu luyện tập thích ứng theo lỗ hổng kiến thức
+        </button>
+      </div>
 
-        const headers = {
-            "apikey": API_KEY,
-            "Authorization": `Bearer ${API_KEY}`,
-            "Content-Type": "application/json",
-            "Prefer": "return=representation"
-        };
+      <div>
+        <h3 class="font-bold text-lg mb-4 text-gray-800">Giải thích chi tiết từng câu:</h3>
+        <div id="review-container" class="space-y-6"></div>
+      </div>
+    </div>
 
-        let currentQuestions = [];
-        let missingSkills = [];
-        let currentStudentCode = "";
-        let currentStudentName = "";
+  </div>
 
-        function triggerKaTeX() {
-            setTimeout(() => {
-                if (window.renderMathInElement) {
-                    renderMathInElement(document.body, {
-                        delimiters: [
-                            {left: '$$', right: '$$', display: false},
-                            {left: '$', right: '$', display: false}
-                        ]
-                    });
-                }
-            }, 100);
+  <script>
+    const SUPABASE_URL = "https://fquizalynoibtuibyoxn.supabase.co/rest/v1/questions?select=*";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxdWl6YWx5bm9pYnR1aWJ5b3huIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkzNzUyMywiZXhwIjoyMTA4NTEzNTIzfQ.MhhxAnxr3ujueLGUH7QFpWPP0N2au8edOw3k2O2XgJE";
+    const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbz_9YFkI2n4o0sC9k4q-L7k8V2H9t3f0pQ_example/exec";
+
+    let allQuestions = [];
+    let currentExamQuestions = [];
+    let userAnswers = {};
+    let studentInfo = { name: "", code: "" };
+    let missingSkills = [];
+
+    async function fetchQuestions() {
+      try {
+        const res = await fetch(SUPABASE_URL, {
+          headers: {
+            "apikey": SUPABASE_KEY,
+            "Authorization": `Bearer ${SUPABASE_KEY}`
+          }
+        });
+        allQuestions = await res.json();
+      } catch (err) {
+        alert("Lỗi tải ngân hàng câu hỏi!");
+      }
+    }
+    fetchQuestions();
+
+    function renderKaTeXText(element) {
+      if (window.renderMathInElement) {
+        renderMathInElement(element, {
+          delimiters: [
+            {left: '$$', right: '$$', display: false},
+            {left: '$', right: '$', display: false}
+          ],
+          throwOnError: false
+        });
+      }
+    }
+
+    function startExam() {
+      const name = document.getElementById("student-name").value.trim();
+      const code = document.getElementById("student-code").value.trim();
+      if (!name || !code) {
+        alert("Vui lòng điền đầy đủ Họ tên và Mã học sinh!");
+        return;
+      }
+      studentInfo = { name, code };
+      document.getElementById("display-student").innerText = `${name} (${code})`;
+
+      currentExamQuestions = [...allQuestions];
+      userAnswers = {};
+
+      document.getElementById("login-screen").classList.add("hidden");
+      document.getElementById("quiz-screen").classList.remove("hidden");
+      renderQuiz();
+    }
+
+    function renderQuiz() {
+      const container = document.getElementById("questions-container");
+      container.innerHTML = "";
+
+      currentExamQuestions.forEach((q, index) => {
+        const card = document.createElement("div");
+        card.className = "p-5 border rounded-xl bg-white shadow-sm";
+
+        let imageHtml = "";
+        if (q.image_url) {
+          imageHtml = `
+            <div class="my-4 text-center">
+              <img src="${q.image_url}" alt="Hình minh họa" class="max-h-64 mx-auto rounded-lg shadow-sm border border-gray-200 object-contain">
+            </div>
+          `;
         }
 
-        async function startInitialTest() {
-            currentStudentName = document.getElementById("student_name").value.trim();
-            currentStudentCode = document.getElementById("student_code").value.trim();
+        const options = ['A', 'B', 'C', 'D'];
+        let optionsHtml = "";
+        options.forEach(opt => {
+          const optKey = `option_${opt.toLowerCase()}`;
+          if (q[optKey]) {
+            optionsHtml += `
+              <label class="flex items-start gap-3 p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition">
+                <input type="radio" name="q_${index}" value="${opt}" onchange="selectAnswer(${index}, '${opt}')" class="mt-1 text-blue-600 focus:ring-blue-500">
+                <span class="text-sm md:text-base"><strong class="text-blue-700">${opt}.</strong> ${q[optKey]}</span>
+              </label>
+            `;
+          }
+        });
 
-            if (!currentStudentName || !currentStudentCode) {
-                alert("Vui lòng điền đủ Họ tên và Mã học sinh!");
-                return;
-            }
+        card.innerHTML = `
+          <div class="font-semibold text-gray-800 text-base md:text-lg mb-2">Câu ${index + 1}: ${q.content}</div>
+          ${imageHtml}
+          <div class="space-y-2 mt-3">${optionsHtml}</div>
+        `;
 
-            document.getElementById("btn-start").disabled = true;
-            document.getElementById("loading-text").classList.remove("hidden");
+        container.appendChild(card);
+      });
 
-            try {
-                const res = await fetch(`${SUPABASE_URL}/questions?select=*`, { headers });
-                currentQuestions = await res.json();
+      renderKaTeXText(container);
+    }
 
-                renderQuestions(currentQuestions);
+    function selectAnswer(qIndex, option) {
+      userAnswers[qIndex] = option;
+    }
 
-                document.getElementById("student-info").classList.add("hidden");
-                document.getElementById("loading-text").classList.add("hidden");
-                document.getElementById("quiz-container").classList.remove("hidden");
-            } catch (err) {
-                alert("Lỗi tải bài kiểm tra: " + err.message);
-                document.getElementById("btn-start").disabled = false;
-                document.getElementById("loading-text").classList.add("hidden");
-            }
+    async function submitExam() {
+      if (Object.keys(userAnswers).length < currentExamQuestions.length) {
+        if (!confirm("Bạn chưa hoàn thành hết các câu hỏi. Bạn vẫn muốn nộp bài chứ?")) {
+          return;
+        }
+      }
+
+      let score = 0;
+      missingSkills = [];
+      const reviewContainer = document.getElementById("review-container");
+      reviewContainer.innerHTML = "";
+
+      currentExamQuestions.forEach((q, index) => {
+        const selected = userAnswers[index];
+        const isCorrect = selected === q.correct_option;
+        if (isCorrect) {
+          score++;
+        } else {
+          if (q.skill_code && !missingSkills.includes(q.skill_code)) {
+            missingSkills.push(q.skill_code);
+          }
         }
 
-        function renderQuestions(list) {
-            const container = document.getElementById("questions-list");
-            container.innerHTML = "";
+        const revCard = document.createElement("div");
+        revCard.className = `p-4 border rounded-xl ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`;
+        
+        let imgRevHtml = q.image_url ? `<div class="my-2 text-center"><img src="${q.image_url}" class="max-h-48 mx-auto rounded border"></div>` : "";
 
-            list.forEach((q, idx) => {
-                const card = document.createElement("div");
-                card.className = "p-5 border border-slate-200 rounded-lg bg-white shadow-sm";
-                card.innerHTML = `
-                    <p class="font-semibold text-base mb-3 text-slate-900">Câu ${idx + 1}: ${q.content}</p>
-                    <div class="space-y-2">
-                        ${['A', 'B', 'C', 'D'].map(opt => `
-                            <label class="flex items-center gap-3 p-2 rounded hover:bg-slate-100 cursor-pointer border border-transparent hover:border-slate-200">
-                                <input type="radio" name="q_${q.id}" value="${opt}" class="w-4 h-4 text-blue-600">
-                                <span><strong>${opt}.</strong> ${q['option_' + opt.toLowerCase()]}</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+        revCard.innerHTML = `
+          <div class="font-medium text-gray-900">Câu ${index + 1}: ${q.content}</div>
+          ${imgRevHtml}
+          <div class="mt-2 text-sm">
+            <span class="${isCorrect ? 'text-green-700 font-bold' : 'text-red-700 font-bold'}">
+              Lựa chọn của bạn: ${selected || "Chưa chọn"} ${isCorrect ? '✓' : '✗'}
+            </span>
+            <span class="ml-4 text-blue-700 font-bold">Đáp án đúng: ${q.correct_option}</span>
+          </div>
+          <div class="mt-2 text-xs bg-white p-3 rounded border text-gray-700">
+            <strong>Lời giải:</strong> ${q.explanation || "Không có lời giải chi tiết."}
+          </div>
+        `;
+        reviewContainer.appendChild(revCard);
+      });
 
-            triggerKaTeX();
-        }
+      renderKaTeXText(reviewContainer);
 
-        async function submitQuiz() {
-            let correctCount = 0;
-            missingSkills = [];
-            const feedbackList = [];
+      document.getElementById("quiz-screen").classList.add("hidden");
+      document.getElementById("result-screen").classList.remove("hidden");
+      document.getElementById("score-display").innerText = `${score} / ${currentExamQuestions.length}`;
 
-            currentQuestions.forEach(q => {
-                const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
-                if (selected && selected.value === q.correct_option) {
-                    correctCount++;
-                } else {
-                    if (!missingSkills.includes(q.skill_code)) {
-                        missingSkills.push(q.skill_code);
-                    }
-                    feedbackList.push({
-                        skill: q.skill_code,
-                        explanation: q.explanation
-                    });
-                }
-            });
+      const weaknessBox = document.getElementById("weakness-box");
+      const weaknessList = document.getElementById("weakness-list");
+      weaknessList.innerHTML = "";
 
-            document.getElementById("quiz-container").classList.add("hidden");
-            const resultBox = document.getElementById("result-box");
-            resultBox.classList.remove("hidden");
+      if (missingSkills.length > 0) {
+        weaknessBox.classList.remove("hidden");
+        missingSkills.forEach(s => {
+          const li = document.createElement("li");
+          li.innerText = s;
+          weaknessList.appendChild(li);
+        });
+        document.getElementById("feedback-text").innerText = "Bạn có một số kiến thức cần củng cố để đạt chuẩn đầu ra.";
+      } else {
+        weaknessBox.classList.add("hidden");
+        document.getElementById("feedback-text").innerText = "Xuất sắc! Bạn đã đạt chuẩn toàn bộ các kỹ năng trong bài kiểm tra.";
+      }
 
-            const isPassed = missingSkills.length === 0;
-            const scoreFormatted = `${correctCount}/${currentQuestions.length}`;
-            const statusFormatted = isPassed ? "Đạt chuẩn" : "Chưa đạt (Cần luyện thêm)";
+      try {
+        fetch(GOOGLE_SHEET_WEBHOOK, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            student_name: studentInfo.name,
+            student_code: studentInfo.code,
+            score: score,
+            total: currentExamQuestions.length,
+            missing_skills: missingSkills.length > 0 ? missingSkills.join(", ") : "Không có (Đạt chuẩn)"
+          })
+        });
+      } catch (e) {
+        console.log("Sheet update silent fail");
+      }
+    }
 
-            document.getElementById("score-text").innerHTML = `Kết quả: Đạt <strong>${scoreFormatted}</strong> câu đúng.`;
+    function startAdaptiveRemediation() {
+      const adaptiveQuestions = allQuestions.filter(q => missingSkills.includes(q.skill_code));
+      if (adaptiveQuestions.length === 0) {
+        alert("Hiện chưa có câu hỏi bổ trợ mới cho các kỹ năng này!");
+        return;
+      }
+      currentExamQuestions = adaptiveQuestions;
+      userAnswers = {};
 
-            const feedbackDiv = document.getElementById("skills-feedback");
-            feedbackDiv.innerHTML = "";
-
-            const actionBox = document.getElementById("remediation-action");
-
-            if (!isPassed) {
-                let html = `
-                    <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-900">
-                        <p class="font-bold mb-2">Chẩn đoán các kỹ năng chưa đạt chuẩn:</p>
-                        <ul class="list-disc pl-5 space-y-1 text-sm">
-                            ${feedbackList.map(item => `<li><strong>[${item.skill}]:</strong> ${item.explanation}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-                feedbackDiv.innerHTML = html;
-                actionBox.classList.remove("hidden");
-            } else {
-                feedbackDiv.innerHTML = `
-                    <div class="p-4 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-lg font-bold">
-                        🎉 Chúc mừng! Bạn đã thành thạo tất cả các kỹ năng được yêu cầu. Đạt chuẩn bài kiểm tra!
-                    </div>
-                `;
-                actionBox.classList.add("hidden");
-            }
-
-            triggerKaTeX();
-
-            // Tự động đẩy kết quả ngầm sang Google Sheet
-            syncToGoogleSheet(currentStudentCode, currentStudentName, scoreFormatted, missingSkills.join(", "), statusFormatted);
-        }
-
-        async function syncToGoogleSheet(code, name, score, weak, status) {
-            const syncEl = document.getElementById("sync-status");
-            try {
-                // Sử dụng mode: 'no-cors' để đẩy dữ liệu ổn định không bị chặn bởi CORS
-                await fetch(GOOGLE_SHEET_URL, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        student_code: code,
-                        student_name: name,
-                        score: score,
-                        weak_skills: weak || "Không có (Đạt chuẩn)",
-                        status: status
-                    })
-                });
-                syncEl.innerText = "✓ Đã tự động cập nhật kết quả vào Google Sheet của giáo viên.";
-                syncEl.className = "text-xs text-emerald-600 font-medium";
-            } catch (e) {
-                syncEl.innerText = "Chưa thể đồng bộ sang Sheet: " + e.message;
-                syncEl.className = "text-xs text-amber-600";
-            }
-        }
-
-        async function startRemediationTest() {
-            document.getElementById("result-box").classList.add("hidden");
-            document.getElementById("loading-text").classList.remove("hidden");
-            document.getElementById("mode-title").innerText = "Chế độ: Luyện tập khắc phục lỗ hổng kiến thức";
-
-            try {
-                const skillFilter = `in.(${missingSkills.join(',')})`;
-                const res = await fetch(`${SUPABASE_URL}/questions?skill_code=${skillFilter}&select=*`, { headers });
-                currentQuestions = await res.json();
-
-                renderQuestions(currentQuestions);
-
-                document.getElementById("loading-text").classList.add("hidden");
-                document.getElementById("quiz-container").classList.remove("hidden");
-            } catch (err) {
-                alert("Lỗi tải bài luyện tập thích ứng: " + err.message);
-                document.getElementById("loading-text").classList.add("hidden");
-            }
-        }
-    </script>
+      document.getElementById("quiz-phase-badge").innerText = "VÒNG 2: BỔ TRỢ THÍCH ỨNG THEO LỖ HỔNG";
+      document.getElementById("quiz-phase-badge").className = "bg-amber-200 text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold";
+      
+      document.getElementById("result-screen").classList.add("hidden");
+      document.getElementById("quiz-screen").classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderQuiz();
+    }
+  </script>
 </body>
 </html>
